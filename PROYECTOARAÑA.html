@@ -1,122 +1,359 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proyecto 2025</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
-            color: white;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        h1 {
-            margin-top: 30px;
-            font-size: 3em;
-            text-shadow: 0 0 10px cyan, 0 0 20px blue;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 120px);
-            grid-template-rows: repeat(3, 120px);
-            gap: 25px;
-            justify-content: center;
-            margin-top: 50px;
-        }
-        .btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(0, 255, 255, 0.4);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-        }
-        .btn:hover {
-            transform: scale(1.15);
-            border-color: cyan;
-            box-shadow: 0 0 20px cyan;
-        }
-        svg {
-            width: 50px;
-            height: 50px;
-            fill: cyan;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Proyecto 2025 - Control y Muestreo</title>
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+    }
+    h1 {
+        margin-top: 20px;
+        font-size: 3em;
+        text-shadow: 0 0 10px cyan, 0 0 20px blue;
+    }
+    /* Estilo de los controles */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 120px);
+        grid-template-rows: repeat(3, 120px);
+        gap: 25px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+    .btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(0, 255, 255, 0.4);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        cursor: pointer;
+        transition: 0.18s;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+    .btn:hover { transform: scale(1.08); border-color: cyan; box-shadow: 0 0 22px cyan; }
+    svg { width: 50px; height: 50px; fill: cyan; }
+
+    /* Formulario */
+    .formulario { margin-top: 24px; }
+    input { padding: 8px; margin: 5px; border-radius: 10px; border: none; outline: none; font-size: 1em; width:120px; text-align:center;}
+    .form-actions { margin-top:10px; }
+    button.primary { padding: 8px 15px; background: cyan; color: black; font-weight:bold; border-radius:10px; border:none; cursor:pointer;}
+    button.warn { padding: 8px 12px; background: #ff7b7b; color:black; border-radius:10px; border:none; cursor:pointer; margin-left:10px;}
+    button.primary:hover { background:#00e6e6; }
+    button.warn:hover { background:#ff6b6b; }
+
+    /* Cuadrícula */
+    #cuadricula {
+        display: inline-grid;
+        margin-top: 20px;
+        gap: 8px;
+        padding: 18px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 12px;
+        box-shadow: 0 0 15px rgba(0,255,255,0.08);
+        max-width: calc(100% - 40px);
+        overflow-x: auto;
+    }
+    .punto {
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        width: 30px;
+        height: 30px;
+        background: rgba(0,255,255,0.06);
+        border: 1px solid rgba(0,255,255,0.22);
+        border-radius: 50%;
+        transition: transform .15s, box-shadow .15s, background .15s;
+    }
+    .punto svg { width:18px; height:18px; fill: cyan; opacity:0.95;}
+    .punto.activo { background: yellow; box-shadow: 0 0 12px yellow; transform: scale(1.15); }
+    .punto.tomado { background: rgba(0,255,100,0.4); border-color: lime; }
+    #log { margin-top:14px; max-height:140px; overflow:auto; text-align:left; font-size:13px; color:#e6fdfd; padding:8px; background: rgba(0,0,0,0.08); border-radius:8px; width:90%; margin-left:auto; margin-right:auto;}
+    #controlsRow { margin-top:12px; display:flex; justify-content:center; gap:10px; align-items:center; flex-wrap:wrap; }
+
+    table { margin: 20px auto; border-collapse: collapse; background: rgba(255,255,255,0.05); }
+    th,td { border: 1px solid cyan; padding: 6px 12px; }
+    th { background: rgba(0,255,255,0.12); }
+</style>
 </head>
 <body>
-    <h1>PROYECTO 2025</h1>
-    <div class="grid">
-        <!-- Giro Izquierda -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/GIROIZQUIERDA')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 1 1-5-5z"/>
-            </svg>
-        </div>
-        <!-- Adelante -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/ADELANTE')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 2l6 6h-4v8h-4V8H6z"/>
-            </svg>
-        </div>
-        <!-- Giro Derecha -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/GIRODERECHA')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 6V3l4 4-4 4V8c-2.76 0-5 2.24-5 5a5 5 0 1 0 5-5z"/>
-            </svg>
-        </div>
-        <!-- Izquierda -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/IZQUIERDA')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M14 7l-5 5 5 5V7z"/>
-            </svg>
-        </div>
-        <!-- Tomar muestra -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/TOMARMUESTRA')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M7.34 16.66l-1.41 1.41m0-11.32l1.41 1.41m9.32 9.32l1.41 1.41"/>
-            </svg>
-        </div>
-        <!-- Derecha -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/DERECHA')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M10 17l5-5-5-5v10z"/>
-            </svg>
-        </div>
-        <!-- Agacharse -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/AGACHARSE')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 3v18m-6-6h12" stroke="cyan" stroke-width="2" fill="none"/>
-            </svg>
-        </div>
-        <!-- Atrás -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/ATRAS')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 22l-6-6h4V8h4v8h4z"/>
-            </svg>
-        </div>
-        <!-- Levantarse -->
-        <div class="btn" onclick="enviarComando('http://172.20.10.2/LEVANTARSE')">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 21V3m-6 6h12" stroke="cyan" stroke-width="2" fill="none"/>
-            </svg>
-        </div>
-    </div>
+<h1>PROYECTO 2025</h1>
 
-    <script>
-        function enviarComando(url) {
-            fetch(url)
-                .then(() => console.log("Comando enviado:", url))
-                .catch(err => console.error("Error enviando comando:", err));
+<div class="grid" aria-hidden="false">
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/GIROIZQUIERDA')">
+        <svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 1 1-5-5z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/ADELANTE')">
+        <svg viewBox="0 0 24 24"><path d="M12 2l6 6h-4v8h-4V8H6z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/GIRODERECHA')">
+        <svg viewBox="0 0 24 24"><path d="M12 6V3l4 4-4 4V8c-2.76 0-5 2.24-5 5a5 5 0 1 0 5-5z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/IZQUIERDA')">
+        <svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5V7z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/TOMARMUESTRA')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M7.34 16.66l-1.41 1.41m0-11.32l1.41 1.41m9.32 9.32l1.41 1.41"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/DERECHA')">
+        <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/AGACHARSE')">
+        <svg viewBox="0 0 24 24"><path d="M12 3v18m-6-6h12" stroke="cyan" stroke-width="2" fill="none"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/ATRAS')">
+        <svg viewBox="0 0 24 24"><path d="M12 22l-6-6h4V8h4v8h4z"/></svg>
+    </div>
+    <div class="btn" onclick="enviarComando('http://172.20.10.2/LEVANTARSE')">
+        <svg viewBox="0 0 24 24"><path d="M12 21V3m-6 6h12" stroke="cyan" stroke-width="2" fill="none"/></svg>
+    </div>
+</div>
+
+<div class="formulario">
+    <input type="number" id="ancho" placeholder="Ancho (m)" step="0.1" />
+    <input type="number" id="largo" placeholder="Largo (m)" step="0.1" />
+    <input type="number" id="distancia" placeholder="Distancia entre muestras (m)" step="0.1" />
+    <div id="controlsRow">
+        <button class="primary" onclick="generarCuadricula()">Generar cuadrícula</button>
+        <button class="primary" id="btnStart" onclick="iniciarRecorrido()">Iniciar recorrido</button>
+        <button class="warn" onclick="detenerRecorrido()">Detener</button>
+    </div>
+</div>
+
+<div id="cuadricula" role="grid" aria-label="Cuadrícula de muestreo"></div>
+
+<table id="tablaHumedad">
+    <tr><th>Punto</th><th>Humedad (%)</th></tr>
+</table>
+
+<div id="log"></div>
+
+<script>
+/* ==== CONFIG ==== */
+const BASE_IP = 'http://172.20.10.2';
+const PASO_METROS = 0.1;          // 0.1 m por comando
+const TIME_MOVE_MS = 10000;       // 10 s por cada paso de 10 cm
+const TIME_AGACHARSE_MS = 4000;   // 4 s
+const TIME_TOMAR_MS = 3000;       // 3 s
+const TIME_LEVANTARSE_MS = 4000;  // 4 s
+
+/* estado */
+let puntos = [];
+let columnas = 0;
+let filas = 0;
+let recorridoActivo = false;
+
+function log(msg){
+    const el = document.getElementById('log');
+    const t = new Date().toLocaleTimeString();
+    el.innerHTML = `<div>[${t}] ${msg}</div>${el.innerHTML}`;
+}
+
+/* enviar comando simple (manual) */
+function enviarComando(url) {
+    // fire-and-forget; el robot puede no devolver datos aquí
+    fetch(url).then(()=> {
+        console.log('OK', url);
+    }).catch(err => {
+        console.error('ERR', url, err);
+    });
+}
+
+/* fetch que devuelve texto (intento de leer humedad) */
+async function pedirHumedad() {
+    try {
+        const res = await fetch(`${BASE_IP}/TOMARMUESTRA`);
+        const text = await res.text();
+        const t = text.trim();
+        // Intentar parsear JSON {"humedad":45.3}
+        try {
+            const obj = JSON.parse(t);
+            if (obj.humedad !== undefined) return obj.humedad;
+            if (obj.value !== undefined) return obj.value;
+        } catch(e){}
+        // si no es JSON, devolver texto plano (ej "45.2")
+        if (t.length > 0) return t;
+        return null;
+    } catch (e) {
+        console.error('Error pidiendo humedad:', e.message);
+        return null;
+    }
+}
+
+function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+/* generar cuadrícula (igual que antes) */
+function generarCuadricula() {
+    const ancho = parseFloat(document.getElementById('ancho').value);
+    const largo = parseFloat(document.getElementById('largo').value);
+    const distancia = parseFloat(document.getElementById('distancia').value);
+
+    if (isNaN(ancho) || isNaN(largo) || isNaN(distancia) || ancho <= 0 || largo <= 0 || distancia <= 0) {
+        alert("Por favor ingresa valores válidos.");
+        return;
+    }
+
+    columnas = Math.floor(ancho / distancia) + 1;
+    filas = Math.floor(largo / distancia) + 1;
+
+    const cuadricula = document.getElementById('cuadricula');
+    cuadricula.innerHTML = '';
+    cuadricula.style.gridTemplateColumns = `repeat(${columnas}, 40px)`;
+
+    puntos = [];
+    for (let i = 0; i < filas * columnas; i++) {
+        const punto = document.createElement('div');
+        punto.classList.add('punto');
+        punto.innerHTML = `<svg viewBox="0 0 24 24">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/>
+            </svg>`;
+        cuadricula.appendChild(punto);
+        puntos.push(punto);
+    }
+
+    // limpiar tabla y log
+    document.getElementById('tablaHumedad').innerHTML = "<tr><th>Punto</th><th>Humedad (%)</th></tr>";
+    document.getElementById('log').innerHTML = "";
+    log(`Cuadrícula generada: ${filas} filas × ${columnas} columnas (${filas*columnas} puntos)`);
+}
+
+/* calcular pasos para una separación dada */
+function pasosPorDistancia(distancia) {
+    const pasos = Math.round(distancia / PASO_METROS);
+    return Math.max(1, pasos);
+}
+
+/* mover: envía N comandos iguales con delay entre cada uno */
+async function mover(direccion, distanciaEntrePuntos) {
+    const pasos = pasosPorDistancia(distanciaEntrePuntos);
+    log(`Mover ${direccion} → ${pasos} pasos (cada paso ${TIME_MOVE_MS/1000}s)`);
+    for (let i = 0; i < pasos; i++) {
+        if (!recorridoActivo) return; // permitir detener
+        enviarComando(`${BASE_IP}/${direccion}`);
+        await delay(TIME_MOVE_MS);
+    }
+}
+
+/* tomar muestra: agacharse -> pedir humedad -> levantarse -> marcar y registrar */
+async function tomarMuestraYSentregarTabla(num, fila, col) {
+    if (!recorridoActivo) return null;
+
+    // 1) AGACHARSE
+    enviarComando(`${BASE_IP}/AGACHARSE`);
+    log(`Punto ${num} (${fila},${col}) → AGACHARSE`);
+    await delay(TIME_AGACHARSE_MS);
+
+    // 2) TOMAR MUESTRA: pedimos humedad (fetch) y esperamos el tiempo de toma
+    log(`Punto ${num} → TOMAR MUESTRA (pidiendo dato)`);
+    // Intentamos leer la respuesta del robot. Si no responde por CORS/timeout, humedad = null
+    const lecturaPromise = pedirHumedad(); // iniciamos fetch
+    await delay(TIME_TOMAR_MS);            // tiempo físico de toma
+    let humedad = await lecturaPromise;
+
+    // 3) LEVANTARSE
+    enviarComando(`${BASE_IP}/LEVANTARSE`);
+    log(`Punto ${num} → LEVANTARSE`);
+    await delay(TIME_LEVANTARSE_MS);
+
+    // marcar visualmente como muestreado
+    const index = fila * columnas + col;
+    if (puntos[index]) puntos[index].classList.add('tomado');
+
+    // si no obtuvimos humedad real, podemos simular (opcional)
+    if (humedad === null || humedad === undefined || humedad === '') {
+        humedad = (Math.random()*30 + 20).toFixed(1); // valor simulado 20.0 - 50.0%
+        log(`No se leyó humedad (CORS/timeout). Usando valor simulado ${humedad}%`);
+    } else {
+        // dejar como número o string tal cual venga
+        humedad = (typeof humedad === 'number') ? humedad.toFixed(1) : String(humedad).trim();
+        log(`Humedad recibida: ${humedad}%`);
+    }
+
+    // agregar a la tabla
+    const tabla = document.getElementById('tablaHumedad');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>Punto ${num}</td><td>${humedad}%</td>`;
+    tabla.appendChild(tr);
+
+    return humedad;
+}
+
+/* zig-zag: controla el recorrido completo */
+async function iniciarRecorrido() {
+    if (puntos.length === 0) { alert('Primero genera la cuadrícula.'); return; }
+    if (recorridoActivo) { log('Recorrido ya en ejecución'); return; }
+
+    recorridoActivo = true;
+    document.getElementById('btnStart')?.setAttribute('disabled','true');
+    log('Iniciando recorrido (zig-zag)');
+
+    const distanciaEntrePuntos = parseFloat(document.getElementById('distancia').value);
+    let puntoNum = 1;
+
+    for (let fila = 0; fila < filas && recorridoActivo; fila++) {
+        if (fila % 2 === 0) {
+            // izquierda -> derecha
+            for (let col = 0; col < columnas && recorridoActivo; col++) {
+                // destacar punto
+                const idx = fila * columnas + col;
+                if (puntos[idx]) puntos[idx].classList.add('activo');
+
+                // tomar muestra
+                await tomarMuestraYSentregarTabla(puntoNum, fila, col);
+                puntoNum++;
+
+                // quitar activo
+                if (puntos[idx]) puntos[idx].classList.remove('activo');
+
+                // mover a la derecha si hay siguiente
+                if (col < columnas - 1 && recorridoActivo) {
+                    await mover('DERECHA', distanciaEntrePuntos);
+                }
+            }
+        } else {
+            // derecha -> izquierda
+            for (let col = columnas - 1; col >= 0 && recorridoActivo; col--) {
+                const idx = fila * columnas + col;
+                if (puntos[idx]) puntos[idx].classList.add('activo');
+
+                await tomarMuestraYSentregarTabla(puntoNum, fila, col);
+                puntoNum++;
+
+                if (puntos[idx]) puntos[idx].classList.remove('activo');
+
+                if (col > 0 && recorridoActivo) {
+                    await mover('IZQUIERDA', distanciaEntrePuntos);
+                }
+            }
         }
-    </script>
+
+        // al terminar fila, bajar a la siguiente (si existe)
+        if (fila < filas - 1 && recorridoActivo) {
+            await mover('ATRAS', distanciaEntrePuntos);
+        }
+    }
+
+    recorridoActivo = false;
+    document.getElementById('btnStart')?.removeAttribute('disabled');
+    log('Recorrido finalizado.');
+}
+
+/* detener recorrido */
+function detenerRecorrido(){
+    recorridoActivo = false;
+    document.getElementById('btnStart')?.removeAttribute('disabled');
+    log('Solicitud: detener recorrido (se detendrá en cuanto termine la acción en curso).');
+}
+</script>
 </body>
 </html>
 
