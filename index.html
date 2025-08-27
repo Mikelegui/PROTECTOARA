@@ -142,8 +142,7 @@
 
 <script>
 /* ==== CONFIG ==== */
-const BASE_IP = 'http://172.20.10.2';              // ESP32 local
-const SERVER_URL = 'https://www.proyectoccsd.online/guardar.php'; // servidor
+const BASE_IP = 'http://172.20.10.2';
 const PASO_CENTIMETROS = 10;
 const TIME_MOVE_MS = 1000;
 const TIME_AGACHARSE_MS = 1000;
@@ -167,34 +166,37 @@ function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 /* ==== IO DISPOSITIVO ==== */
 function enviarComando(url) {
-    fetch(url).catch(err => console.error('ERR', url, err));
+    fetch(url).then(()=> {
+        console.log('OK', url);
+    }).catch(err => {
+        console.error('ERR', url, err);
+    });
 }
 
-/* Enviar al servidor remoto */
-async function enviarAlServidor(valor) {
-    try {
-        const formData = new FormData();
-        formData.append("valor", valor);
-        await fetch(SERVER_URL, { method: "POST", body: formData });
-        log("Dato enviado al servidor: " + valor + "%");
-    } catch (err) {
-        log("Error al enviar dato al servidor");
-    }
-}
-
+/* 
+   LEE SIEMPRE DESDE /HUMEDAD.
+   - Si el ESP32 devuelve JSON, toma "humedad" o "value".
+   - Si devuelve texto plano (p.ej. "45.2"), extrae el primer número.
+*/
 async function pedirHumedad() {
     try {
         const res = await fetch(`${BASE_IP}/HUMEDAD?ts=${Date.now()}`);
         const text = (await res.text()).trim();
+
+        // Intentar JSON
         try {
             const obj = JSON.parse(text);
             if (obj.humedad !== undefined) return Number(obj.humedad);
             if (obj.value !== undefined) return Number(obj.value);
-        } catch(e){}
+        } catch(e){ /* no era JSON */ }
+
+        // Extraer número si viene como texto
         const match = text.match(/-?\d+(?:\.\d+)?/);
         if (match) return Number(match[0]);
+
         return null;
     } catch (e) {
+        console.error('Error pidiendo humedad:', e.message);
         return null;
     }
 }
@@ -205,7 +207,7 @@ function generarCuadricula() {
     const largo = parseFloat(document.getElementById('largo').value);
     const distancia = parseFloat(document.getElementById('distancia').value);
 
-    if (isNaN(ancho) || isNaN(largo) || isNaN(distancia)) {
+    if (isNaN(ancho) || isNaN(largo) || isNaN(distancia) || ancho <= 10 || largo <= 10 || distancia <= 10) {
         alert("Por favor ingresa valores válidos.");
         return;
     }
@@ -221,13 +223,16 @@ function generarCuadricula() {
     for (let i = 0; i < filas * columnas; i++) {
         const punto = document.createElement('div');
         punto.classList.add('punto');
-        punto.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/></svg>`;
+        punto.innerHTML = `<svg viewBox="0 0 24 24">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/>
+            </svg>`;
         cuadricula.appendChild(punto);
         puntos.push(punto);
     }
 
     document.getElementById('tablaHumedad').innerHTML = "<tr><th>Punto</th><th>Humedad (%)</th></tr>";
     document.getElementById('log').innerHTML = "";
+    log(`Cuadrícula generada: ${filas} filas × ${columnas} columnas (${filas*columnas} puntos)`);
 }
 
 function pasosPorDistancia(distancia) {
@@ -237,6 +242,7 @@ function pasosPorDistancia(distancia) {
 
 async function mover(direccion, distanciaEntrePuntos) {
     const pasos = pasosPorDistancia(distanciaEntrePuntos);
+    log(`Mover ${direccion} → ${pasos} pasos (cada paso ${TIME_MOVE_MS/1000}s)`);
     for (let i = 0; i < pasos; i++) {
         if (!recorridoActivo) return;
         enviarComando(`${BASE_IP}/${direccion}`);
@@ -247,82 +253,110 @@ async function mover(direccion, distanciaEntrePuntos) {
 /* ==== MUESTREO ==== */
 async function tomarMuestraYSentregarTabla(num, fila, col) {
     if (!recorridoActivo) return null;
+
     enviarComando(`${BASE_IP}/AGACHARSE`);
+    log(`Punto ${num} (${fila},${col}) → AGACHARSE`);
     await delay(TIME_AGACHARSE_MS);
 
+    log(`Punto ${num} → TOMAR MUESTRA (leyendo /HUMEDAD)`);
     const humedadLeida = await pedirHumedad();
     await delay(TIME_TOMAR_MS);
 
     enviarComando(`${BASE_IP}/LEVANTARSE`);
+    log(`Punto ${num} → LEVANTARSE`);
     await delay(TIME_LEVANTARSE_MS);
 
     const index = fila * columnas + col;
     if (puntos[index]) puntos[index].classList.add('tomado');
 
     let humedadFinal = humedadLeida;
-    if (!humedadFinal) {
+    if (humedadFinal === null || humedadFinal === undefined || humedadFinal === '') {
         humedadFinal = (Math.random()*30 + 20).toFixed(1);
+        log(`No se leyó humedad. Usando valor simulado ${humedadFinal}%`);
     } else {
         humedadFinal = (typeof humedadFinal === 'number') ? humedadFinal.toFixed(1) : String(humedadFinal).trim();
+        log(`Humedad recibida: ${humedadFinal}%`);
     }
 
-    // Guardar en tabla local
     const tabla = document.getElementById('tablaHumedad');
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>Punto ${num}</td><td>${humedadFinal}%</td>`;
     tabla.appendChild(tr);
-
-    // Enviar al servidor
-    enviarAlServidor(humedadFinal);
 
     return humedadFinal;
 }
 
 async function iniciarRecorrido() {
     if (puntos.length === 0) { alert('Primero genera la cuadrícula.'); return; }
+    if (recorridoActivo) { log('Recorrido ya en ejecución'); return; }
+
     recorridoActivo = true;
     document.getElementById('btnStart')?.setAttribute('disabled','true');
+    log('Iniciando recorrido (zig-zag)');
 
     const distanciaEntrePuntos = parseFloat(document.getElementById('distancia').value);
     let puntoNum = 1;
 
     for (let fila = 0; fila < filas && recorridoActivo; fila++) {
         if (fila % 2 === 0) {
+            // Izq -> Der
             for (let col = 0; col < columnas && recorridoActivo; col++) {
+                const idx = fila * columnas + col;
+                if (puntos[idx]) puntos[idx].classList.add('activo');
+
                 await tomarMuestraYSentregarTabla(puntoNum, fila, col);
                 puntoNum++;
-                if (col < columnas - 1 && recorridoActivo) await mover('DERECHA', distanciaEntrePuntos);
+
+                if (puntos[idx]) puntos[idx].classList.remove('activo');
+                if (col < columnas - 1 && recorridoActivo) {
+                    await mover('DERECHA', distanciaEntrePuntos);
+                }
             }
         } else {
+            // Der -> Izq
             for (let col = columnas - 1; col >= 0 && recorridoActivo; col--) {
+                const idx = fila * columnas + col;
+                if (puntos[idx]) puntos[idx].classList.add('activo');
+
                 await tomarMuestraYSentregarTabla(puntoNum, fila, col);
                 puntoNum++;
-                if (col > 0 && recorridoActivo) await mover('IZQUIERDA', distanciaEntrePuntos);
+
+                if (puntos[idx]) puntos[idx].classList.remove('activo');
+                if (col > 0 && recorridoActivo) {
+                    await mover('IZQUIERDA', distanciaEntrePuntos);
+                }
             }
         }
-        if (fila < filas - 1 && recorridoActivo) await mover('ATRAS', distanciaEntrePuntos);
+
+        // Bajar una fila
+        if (fila < filas - 1 && recorridoActivo) {
+            await mover('ATRAS', distanciaEntrePuntos);
+        }
     }
 
     recorridoActivo = false;
     document.getElementById('btnStart')?.removeAttribute('disabled');
+    log('Recorrido finalizado.');
 }
 
 function detenerRecorrido(){
     recorridoActivo = false;
     document.getElementById('btnStart')?.removeAttribute('disabled');
+    log('Solicitud: detener recorrido (se detendrá en cuanto termine la acción en curso).');
 }
 
-/* Botón central: lectura manual */
+/* Botón central: lectura manual inmediata desde /HUMEDAD */
 async function tomarMuestraManual(){
+    log("Petición manual de humedad (/HUMEDAD) ...");
     const h = await pedirHumedad();
-    if (!h) {
+    if (h === null || h === undefined || h === '') {
         log("No se pudo leer la humedad.");
     } else {
         const v = (typeof h === 'number') ? h.toFixed(1) : String(h).trim();
         log(`Lectura manual: ${v}%`);
-        enviarAlServidor(v);
     }
 }
 </script>
 </body>
 </html>
+
