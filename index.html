@@ -18,7 +18,6 @@
         font-size: 3em;
         text-shadow: 0 0 10px cyan, 0 0 20px blue;
     }
-   
     .grid {
         display: grid;
         grid-template-columns: repeat(3, 120px);
@@ -50,7 +49,6 @@
     button.primary:hover { background:#00e6e6; }
     button.warn:hover { background:#ff6b6b; }
 
-  
     #cuadricula {
         display: inline-grid;
         margin-top: 20px;
@@ -100,13 +98,15 @@
     <div class="btn" onclick="enviarComando('http://172.20.10.2/IZQUIERDA')">
         <svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5V7z"/></svg>
     </div>
-    <div class="btn" onclick="enviarComando('http://172.20.10.2/TOMARMUESTRA')"    log(`Punto ${num} → TOMAR MUESTRA (pidiendo dato)`);
-    
-    const lecturaPromise = pedirHumedad();
-    await delay(TIME_TOMAR_MS);            
-    let humedad = await lecturaPromise;>
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M7.34 16.66l-1.41 1.41m0-11.32l1.41 1.41m9.32 9.32l1.41 1.41"/></svg>
+
+    <!-- Botón central: TOMAR MUESTRA (lee /HUMEDAD) -->
+    <div class="btn" onclick="tomarMuestraManual()">
+        <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M7.34 16.66l-1.41 1.41m0-11.32l1.41 1.41m9.32 9.32l1.41 1.41"/>
+        </svg>
     </div>
+
     <div class="btn" onclick="enviarComando('http://172.20.10.2/DERECHA')">
         <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg>
     </div>
@@ -141,71 +141,71 @@
 <div id="log"></div>
 
 <script>
+/* ==== CONFIG ==== */
+const BASE_IP = 'http://172.20.10.2';              // ESP32 local
+const SERVER_URL = 'https://www.proyectoccsd.online/guardar.php'; // servidor
+const PASO_CENTIMETROS = 10;
+const TIME_MOVE_MS = 1000;
+const TIME_AGACHARSE_MS = 1000;
+const TIME_TOMAR_MS = 1000;
+const TIME_LEVANTARSE_MS = 1000;
 
-const BASE_IP = 'http://172.20.10.2';
-const PASO_CENTIMETROS = 10;         
-const TIME_MOVE_MS = 1000;      
-const TIME_AGACHARSE_MS = 1000;   
-const TIME_TOMAR_MS = 1000;       
-const TIME_LEVANTARSE_MS = 1000;  
-
+/* ==== ESTADO ==== */
 let puntos = [];
 let columnas = 0;
 let filas = 0;
 let recorridoActivo = false;
 
+/* ==== UTIL ==== */
 function log(msg){
     const el = document.getElementById('log');
     const t = new Date().toLocaleTimeString();
     el.innerHTML = `<div>[${t}] ${msg}</div>${el.innerHTML}`;
 }
 
+function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+/* ==== IO DISPOSITIVO ==== */
 function enviarComando(url) {
-   
-    fetch(url).then(()=> {
-        console.log('OK', url);
-    }).catch(err => {
-        console.error('ERR', url, err);
-    });
+    fetch(url).catch(err => console.error('ERR', url, err));
 }
 
+/* Enviar al servidor remoto */
+async function enviarAlServidor(valor) {
+    try {
+        const formData = new FormData();
+        formData.append("valor", valor);
+        await fetch(SERVER_URL, { method: "POST", body: formData });
+        log("Dato enviado al servidor: " + valor + "%");
+    } catch (err) {
+        log("Error al enviar dato al servidor");
+    }
+}
 
 async function pedirHumedad() {
     try {
-        const res = await fetch(`${BASE_IP}/TOMARMUESTRA`);
-        const text = await res.text();
-        const t = text.trim();
-
-           log(`Punto ${num} → TOMAR MUESTRA (pidiendo dato)`);
-    
-    const lecturaPromise = pedirHumedad();
-    await delay(TIME_TOMAR_MS);            
-    let humedad = await lecturaPromise;
-       
+        const res = await fetch(`${BASE_IP}/HUMEDAD?ts=${Date.now()}`);
+        const text = (await res.text()).trim();
         try {
-            const obj = JSON.parse(t);
-            if (obj.humedad !== undefined) return obj.humedad;
-            if (obj.value !== undefined) return obj.value;
+            const obj = JSON.parse(text);
+            if (obj.humedad !== undefined) return Number(obj.humedad);
+            if (obj.value !== undefined) return Number(obj.value);
         } catch(e){}
- 
-        if (t.length > 0) return t;
+        const match = text.match(/-?\d+(?:\.\d+)?/);
+        if (match) return Number(match[0]);
         return null;
     } catch (e) {
-        console.error('Error pidiendo humedad:', e.message);
         return null;
     }
 }
 
-function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-
+/* ==== UI ==== */
 function generarCuadricula() {
     const ancho = parseFloat(document.getElementById('ancho').value);
     const largo = parseFloat(document.getElementById('largo').value);
     const distancia = parseFloat(document.getElementById('distancia').value);
 
-    if (isNaN(ancho) || isNaN(largo) || isNaN(distancia) || ancho <= 10 || largo <= 10|| distancia <= 10) {
+    if (isNaN(ancho) || isNaN(largo) || isNaN(distancia)) {
         alert("Por favor ingresa valores válidos.");
         return;
     }
@@ -221,144 +221,107 @@ function generarCuadricula() {
     for (let i = 0; i < filas * columnas; i++) {
         const punto = document.createElement('div');
         punto.classList.add('punto');
-        punto.innerHTML = `<svg viewBox="0 0 24 24">
-                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/>
-            </svg>`;
+        punto.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/></svg>`;
         cuadricula.appendChild(punto);
         puntos.push(punto);
     }
 
-   
     document.getElementById('tablaHumedad').innerHTML = "<tr><th>Punto</th><th>Humedad (%)</th></tr>";
     document.getElementById('log').innerHTML = "";
-    log(`Cuadrícula generada: ${filas} filas × ${columnas} columnas (${filas*columnas} puntos)`);
 }
-
 
 function pasosPorDistancia(distancia) {
     const pasos = Math.round(distancia / PASO_CENTIMETROS);
     return Math.max(1, pasos);
 }
 
-
 async function mover(direccion, distanciaEntrePuntos) {
     const pasos = pasosPorDistancia(distanciaEntrePuntos);
-    log(`Mover ${direccion} → ${pasos} pasos (cada paso ${TIME_MOVE_MS/1000}s)`);
     for (let i = 0; i < pasos; i++) {
-        if (!recorridoActivo) return; 
+        if (!recorridoActivo) return;
         enviarComando(`${BASE_IP}/${direccion}`);
         await delay(TIME_MOVE_MS);
     }
 }
 
-
+/* ==== MUESTREO ==== */
 async function tomarMuestraYSentregarTabla(num, fila, col) {
     if (!recorridoActivo) return null;
-
     enviarComando(`${BASE_IP}/AGACHARSE`);
-    log(`Punto ${num} (${fila},${col}) → AGACHARSE`);
     await delay(TIME_AGACHARSE_MS);
 
-   
-    log(`Punto ${num} → TOMAR MUESTRA (pidiendo dato)`);
-    
-    const lecturaPromise = pedirHumedad();
-    await delay(TIME_TOMAR_MS);            
-    let humedad = await lecturaPromise;
-
+    const humedadLeida = await pedirHumedad();
+    await delay(TIME_TOMAR_MS);
 
     enviarComando(`${BASE_IP}/LEVANTARSE`);
-    log(`Punto ${num} → LEVANTARSE`);
     await delay(TIME_LEVANTARSE_MS);
-
 
     const index = fila * columnas + col;
     if (puntos[index]) puntos[index].classList.add('tomado');
 
-    
-    if (humedad === null || humedad === undefined || humedad === '') {
-        humedad = (Math.random()*30 + 20).toFixed(1); 
-        log(`No se leyó humedad (CORS/timeout). Usando valor simulado ${humedad}%`);
+    let humedadFinal = humedadLeida;
+    if (!humedadFinal) {
+        humedadFinal = (Math.random()*30 + 20).toFixed(1);
     } else {
-        
-        humedad = (typeof humedad === 'number') ? humedad.toFixed(1) : String(humedad).trim();
-        log(`Humedad recibida: ${humedad}%`);
+        humedadFinal = (typeof humedadFinal === 'number') ? humedadFinal.toFixed(1) : String(humedadFinal).trim();
     }
 
-   
+    // Guardar en tabla local
     const tabla = document.getElementById('tablaHumedad');
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>Punto ${num}</td><td>${humedad}%</td>`;
+    tr.innerHTML = `<td>Punto ${num}</td><td>${humedadFinal}%</td>`;
     tabla.appendChild(tr);
 
-    return humedad;
-}
+    // Enviar al servidor
+    enviarAlServidor(humedadFinal);
 
+    return humedadFinal;
+}
 
 async function iniciarRecorrido() {
     if (puntos.length === 0) { alert('Primero genera la cuadrícula.'); return; }
-    if (recorridoActivo) { log('Recorrido ya en ejecución'); return; }
-
     recorridoActivo = true;
     document.getElementById('btnStart')?.setAttribute('disabled','true');
-    log('Iniciando recorrido (zig-zag)');
 
     const distanciaEntrePuntos = parseFloat(document.getElementById('distancia').value);
     let puntoNum = 1;
 
     for (let fila = 0; fila < filas && recorridoActivo; fila++) {
         if (fila % 2 === 0) {
-           
             for (let col = 0; col < columnas && recorridoActivo; col++) {
-          
-                const idx = fila * columnas + col;
-                if (puntos[idx]) puntos[idx].classList.add('activo');
-
-         
                 await tomarMuestraYSentregarTabla(puntoNum, fila, col);
                 puntoNum++;
-
-              
-                if (puntos[idx]) puntos[idx].classList.remove('activo');
-
-          
-                if (col < columnas - 1 && recorridoActivo) {
-                    await mover('DERECHA', distanciaEntrePuntos);
-                }
+                if (col < columnas - 1 && recorridoActivo) await mover('DERECHA', distanciaEntrePuntos);
             }
         } else {
-         
             for (let col = columnas - 1; col >= 0 && recorridoActivo; col--) {
-                const idx = fila * columnas + col;
-                if (puntos[idx]) puntos[idx].classList.add('activo');
-
                 await tomarMuestraYSentregarTabla(puntoNum, fila, col);
                 puntoNum++;
-
-                if (puntos[idx]) puntos[idx].classList.remove('activo');
-
-                if (col > 0 && recorridoActivo) {
-                    await mover('IZQUIERDA', distanciaEntrePuntos);
-                }
+                if (col > 0 && recorridoActivo) await mover('IZQUIERDA', distanciaEntrePuntos);
             }
         }
-
-        
-        if (fila < filas - 1 && recorridoActivo) {
-            await mover('ATRAS', distanciaEntrePuntos);
-        }
+        if (fila < filas - 1 && recorridoActivo) await mover('ATRAS', distanciaEntrePuntos);
     }
 
     recorridoActivo = false;
     document.getElementById('btnStart')?.removeAttribute('disabled');
-    log('Recorrido finalizado.');
 }
-
 
 function detenerRecorrido(){
     recorridoActivo = false;
     document.getElementById('btnStart')?.removeAttribute('disabled');
-    log('Solicitud: detener recorrido (se detendrá en cuanto termine la acción en curso).');
+}
+
+/* Botón central: lectura manual */
+async function tomarMuestraManual(){
+    const h = await pedirHumedad();
+    if (!h) {
+        log("No se pudo leer la humedad.");
+    } else {
+        const v = (typeof h === 'number') ? h.toFixed(1) : String(h).trim();
+        log(`Lectura manual: ${v}%`);
+        enviarAlServidor(v);
+    }
 }
 </script>
 </body>
