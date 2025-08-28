@@ -164,14 +164,6 @@ function log(msg){
 
 function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-/* ==== IO DISPOSITIVO ==== */
-function enviarComando(url) {
-    fetch(url).then(()=> {
-        console.log('OK', url);
-    }).catch(err => {
-        console.error('ERR', url, err);
-    });
-}
 
 /* 
    LEE SIEMPRE DESDE /HUMEDAD.
